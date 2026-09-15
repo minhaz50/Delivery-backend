@@ -17,10 +17,11 @@
     "noUnusedParameters": false,
     "noImplicitAny": true,
     "strictPropertyInitialization": false,
-    "ignoreDeprecations": "6.0",
-    "baseUrl": ".",
+    "ignoreDeprecations": "5.0",
+    "baseUrl": "./src",
     "paths": {
-      "@/*": ["src/*"]
+      "@app/*": ["app/*"],
+      "@lib/*": ["lib/*"]
     }
   },
   "include": ["src/**/*.ts"],
