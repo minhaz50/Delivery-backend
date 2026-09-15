@@ -1,0 +1,117 @@
+enum Role {
+  SUPER_ADMIN
+  ADMIN
+  OPS_MANAGER
+  HUB_MANAGER
+  COURIER
+  CUSTOMER
+}
+
+enum UserStatus {
+  ACTIVE
+  BLOCKED
+  DELETED
+}
+
+enum ServiceLevel {
+  STANDARD
+  EXPRESS
+  SAME_DAY
+}
+
+// The full shipment lifecycle. Kept flat (not nested state machines) so a
+// single column can always answer "where is this parcel right now".
+enum ShipmentStatus {
+  CREATED
+  PICKUP_SCHEDULED
+  COURIER_ASSIGNED
+  PICKUP_FAILED
+  PICKED_UP
+  AT_ORIGIN_HUB
+  IN_TRANSIT
+  AT_DESTINATION_HUB
+  OUT_FOR_DELIVERY
+  DELIVERY_FAILED
+  DELIVERED
+  RETURN_INITIATED
+  RETURN_IN_TRANSIT
+  RETURNED_TO_SENDER
+  CANCELLED
+}
+
+// Who/what is physically holding the parcel right now. Used to disambiguate
+// "IN_TRANSIT" (could be courier-to-hub or hub-to-hub) and to know who is
+// allowed to trigger the next transition.
+enum HolderType {
+  CUSTOMER
+  COURIER
+  HUB
+  NONE
+}
+
+enum AssignmentLegType {
+  PICKUP
+  DELIVERY
+  RETURN_PICKUP
+  RETURN_DELIVERY
+}
+
+enum AssignmentStatus {
+  ASSIGNED
+  ACCEPTED
+  IN_PROGRESS
+  COMPLETED
+  FAILED
+  REASSIGNED
+  CANCELLED
+}
+
+enum ManifestStatus {
+  OPEN
+  DISPATCHED
+  IN_TRANSIT
+  ARRIVED
+  CLOSED
+}
+
+enum PaymentMethod {
+  COD
+  CARD
+  MOBILE_BANKING
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  FAILED
+  REFUNDED
+  PARTIALLY_REFUNDED
+}
+
+enum EarningStatus {
+  PENDING
+  APPROVED
+  PAID
+  REVERSED
+}
+
+enum NotificationChannel {
+  EMAIL
+  SMS
+  IN_APP
+  PUSH
+}
+
+enum NotificationStatus {
+  PENDING
+  SENT
+  FAILED
+}
+
+enum ReturnStatus {
+  REQUESTED
+  APPROVED
+  IN_TRANSIT
+  COMPLETED
+  REJECTED
+}

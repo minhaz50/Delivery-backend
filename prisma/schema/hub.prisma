@@ -1,0 +1,57 @@
+// A geographic coverage area used for both pricing (zone-pair tariffs) and
+// courier assignment (match courier's current zone to shipment's zone).
+model Zone {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+
+  name    String
+  code    String
+  city    String
+
+  createdAt DateTime @default(now())
+
+  hubs               Hub[]
+  addresses          Address[]
+  couriersHere       CourierProfile[]
+  pricingRulesFrom   PricingRule[]    @relation("PricingFromZone")
+  pricingRulesTo     PricingRule[]    @relation("PricingToZone")
+  shipmentsFromZone  Shipment[]       @relation("ShipmentOriginZone")
+  shipmentsToZone    Shipment[]       @relation("ShipmentDestinationZone")
+
+  @@unique([organizationId, code])
+  @@map("zones")
+}
+
+model Hub {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+
+  name    String
+  code    String
+  zoneId  String
+  zone    Zone   @relation(fields: [zoneId], references: [id])
+
+  address   String
+  latitude  Float?
+  longitude Float?
+  isActive  Boolean @default(true)
+
+  managerId String?
+  manager   User?   @relation("HubManager", fields: [managerId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  couriers               CourierProfile[]
+  shipmentsAsOrigin      Shipment[]       @relation("ShipmentOriginHub")
+  shipmentsAsDestination Shipment[]       @relation("ShipmentDestinationHub")
+  shipmentsCurrentlyHere Shipment[]       @relation("ShipmentCurrentHub")
+  manifestsOut           HubManifest[]    @relation("ManifestFromHub")
+  manifestsIn            HubManifest[]    @relation("ManifestToHub")
+
+  @@unique([organizationId, code])
+  @@index([zoneId])
+  @@map("hubs")
+}

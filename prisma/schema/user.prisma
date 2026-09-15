@@ -1,0 +1,91 @@
+model User {
+  id             String     @id @default(cuid())
+  organizationId String?
+  organization   Organization? @relation(fields: [organizationId], references: [id])
+
+  name     String
+  email    String     @unique
+  phone    String?
+  password String
+  role     Role       @default(CUSTOMER)
+  status   UserStatus @default(ACTIVE)
+
+  isDeleted Boolean   @default(false)
+  deletedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  courierProfile   CourierProfile?
+  managedHubs      Hub[]             @relation("HubManager")
+  addresses        Address[]
+  shipmentsAsCustomer Shipment[]     @relation("ShipmentCustomer")
+  shipmentEvents   ShipmentEvent[]
+  notifications    Notification[]
+  createdManifests HubManifest[]
+
+  @@index([organizationId])
+  @@index([role])
+  @@map("users")
+}
+
+// Reusable postal address, attached to shipments (sender/receiver) and
+// optionally saved against a customer for reuse.
+model Address {
+  id        String   @id @default(cuid())
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id])
+
+  label     String? // "Home", "Office", etc.
+  line1     String
+  line2     String?
+  city      String
+  zoneId    String?
+  zone      Zone?    @relation(fields: [zoneId], references: [id])
+  postCode  String?
+  country   String   @default("BD")
+  latitude  Float?
+  longitude Float?
+  contactName  String
+  contactPhone String
+
+  createdAt DateTime @default(now())
+
+  shipmentsAsSender   Shipment[] @relation("ShipmentSenderAddress")
+  shipmentsAsReceiver Shipment[] @relation("ShipmentReceiverAddress")
+
+  @@index([userId])
+  @@index([zoneId])
+  @@map("addresses")
+}
+
+// Extra profile data specific to couriers: capacity, home hub, live
+// availability. Kept separate from User so the assignment engine can query
+// a narrow, indexed table instead of scanning all users.
+model CourierProfile {
+  id             String   @id @default(cuid())
+  userId         String   @unique
+  user           User     @relation(fields: [userId], references: [id])
+
+  organizationId String
+  homeHubId      String?
+  homeHub        Hub?     @relation(fields: [homeHubId], references: [id])
+  currentZoneId  String?
+  currentZone    Zone?    @relation(fields: [currentZoneId], references: [id])
+
+  vehicleType    String   @default("BIKE") // BIKE, VAN, TRUCK
+  capacityKg     Float    @default(20)
+  isAvailable    Boolean  @default(true)
+  activeParcelCount Int   @default(0)
+  rating         Float    @default(5.0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  assignments CourierAssignment[]
+  earnings    CourierEarning[]
+
+  @@index([organizationId, isAvailable])
+  @@index([currentZoneId])
+  @@map("courier_profiles")
+}

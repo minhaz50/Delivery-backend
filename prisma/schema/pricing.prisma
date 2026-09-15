@@ -1,0 +1,66 @@
+// Zone-pair tariff table. PricingService looks up the most specific
+// matching rule (exact zone pair -> same city -> org default) and caches
+// the result in Redis since this is read on every shipment-creation call
+// and rarely changes.
+model PricingRule {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+
+  fromZoneId String?
+  fromZone   Zone?   @relation("PricingFromZone", fields: [fromZoneId], references: [id])
+  toZoneId   String?
+  toZone     Zone?   @relation("PricingToZone", fields: [toZoneId], references: [id])
+
+  serviceLevel ServiceLevel @default(STANDARD)
+
+  baseFee     Float // flat fee for the first weight bracket
+  perKgFee    Float // additional cost per kg beyond the base bracket
+  baseWeightKg Float @default(1)
+
+  isActive Boolean @default(true)
+  createdAt DateTime @default(now())
+
+  @@index([organizationId, fromZoneId, toZoneId, serviceLevel])
+  @@map("pricing_rules")
+}
+
+model Payment {
+  id             String        @id @default(cuid())
+  organizationId String
+  organization   Organization  @relation(fields: [organizationId], references: [id])
+
+  amount   Float
+  method   PaymentMethod
+  status   PaymentStatus @default(PENDING)
+
+  provider    String? // "STRIPE" | "SSLCOMMERZ" | "BKASH" | "MOCK"
+  providerRef String? // gateway transaction id
+
+  paidAt    DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  shipment Shipment?
+
+  @@map("payments")
+}
+
+model Notification {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
+
+  channel NotificationChannel
+  title   String
+  body    String
+  status  NotificationStatus @default(PENDING)
+
+  meta Json? // e.g. { shipmentId, trackingId }
+
+  sentAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId, status])
+  @@map("notifications")
+}

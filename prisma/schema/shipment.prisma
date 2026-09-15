@@ -1,0 +1,111 @@
+model Shipment {
+  id             String       @id @default(cuid())
+  trackingId     String       @unique // human-facing code, e.g. CRX-8F3K2Q
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+
+  customerId String
+  customer   User   @relation("ShipmentCustomer", fields: [customerId], references: [id])
+
+  senderAddressId   String
+  senderAddress     Address @relation("ShipmentSenderAddress", fields: [senderAddressId], references: [id])
+  receiverAddressId String
+  receiverAddress   Address @relation("ShipmentReceiverAddress", fields: [receiverAddressId], references: [id])
+
+  originZoneId      String
+  originZone        Zone   @relation("ShipmentOriginZone", fields: [originZoneId], references: [id])
+  destinationZoneId String
+  destinationZone   Zone   @relation("ShipmentDestinationZone", fields: [destinationZoneId], references: [id])
+
+  originHubId      String?
+  originHub        Hub?    @relation("ShipmentOriginHub", fields: [originHubId], references: [id])
+  destinationHubId String?
+  destinationHub   Hub?    @relation("ShipmentDestinationHub", fields: [destinationHubId], references: [id])
+
+  // Where the parcel physically is right now, if it's sitting in a hub.
+  currentHubId String?
+  currentHub   Hub?    @relation("ShipmentCurrentHub", fields: [currentHubId], references: [id])
+
+  weightKg     Float
+  lengthCm     Float?
+  widthCm      Float?
+  heightCm     Float?
+  declaredValue Float?
+  codAmount     Float   @default(0) // cash-on-delivery amount to collect, 0 if prepaid
+  serviceLevel  ServiceLevel @default(STANDARD)
+  description   String?
+
+  status      ShipmentStatus @default(CREATED)
+  holderType  HolderType     @default(CUSTOMER)
+
+  price          Float // computed at creation via PricingService
+  paymentId      String?        @unique
+  payment        Payment?       @relation(fields: [paymentId], references: [id])
+
+  // Optimistic-locking guard so two concurrent status updates
+  // (e.g. a hub scan and a courier app both marking the same parcel)
+  // can't silently overwrite one another. See ShipmentService.updateStatus.
+  version Int @default(0)
+
+  // Soft delete — an admin/ops "delete" hides the record from normal
+  // listing/search without destroying the audit trail (ShipmentEvent
+  // rows, payment history) a real record still legally needs. Only
+  // shipments in CREATED or CANCELLED may be soft-deleted (see
+  // ShipmentService.softDelete) — nothing already moving is erasable.
+  isDeleted Boolean   @default(false)
+  deletedAt DateTime?
+
+  pickupScheduledAt DateTime?
+  pickedUpAt        DateTime?
+  deliveredAt       DateTime?
+  cancelledAt       DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  events           ShipmentEvent[]
+  assignments      CourierAssignment[]
+  manifestItems    ManifestItem[]
+  returnRequest    ReturnRequest?
+  earnings         CourierEarning[]
+
+  @@index([organizationId, status])
+  @@index([customerId])
+  @@index([currentHubId])
+  @@map("shipments")
+}
+
+// Append-only audit trail. Every status transition inserts exactly one row
+// here in the same transaction as the Shipment.status update — this table
+// IS the "tracking timeline" customers see.
+model ShipmentEvent {
+  id         String         @id @default(cuid())
+  shipmentId String
+  shipment   Shipment       @relation(fields: [shipmentId], references: [id])
+
+  status     ShipmentStatus
+  note       String?
+  location   String? // free-text label: hub name, "En route", etc.
+
+  actorId String?
+  actor   User?   @relation(fields: [actorId], references: [id])
+
+  createdAt DateTime @default(now())
+
+  @@index([shipmentId, createdAt])
+  @@map("shipment_events")
+}
+
+model ReturnRequest {
+  id         String       @id @default(cuid())
+  shipmentId String       @unique
+  shipment   Shipment     @relation(fields: [shipmentId], references: [id])
+
+  reason     String
+  status     ReturnStatus @default(REQUESTED)
+
+  initiatedAt DateTime  @default(now())
+  resolvedAt  DateTime?
+
+  @@map("return_requests")
+}

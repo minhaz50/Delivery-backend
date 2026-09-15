@@ -1,0 +1,91 @@
+// One leg of a shipment's journey handled by a specific courier: the
+// pickup leg (customer -> origin hub) and the delivery leg
+// (destination hub -> customer) are modeled as separate assignments,
+// since they're very likely to be different couriers.
+model CourierAssignment {
+  id         String            @id @default(cuid())
+  shipmentId String
+  shipment   Shipment          @relation(fields: [shipmentId], references: [id])
+  courierId  String
+  courier    CourierProfile    @relation(fields: [courierId], references: [id])
+
+  legType AssignmentLegType
+  status  AssignmentStatus   @default(ASSIGNED)
+
+  assignedAt  DateTime  @default(now())
+  acceptedAt  DateTime?
+  completedAt DateTime?
+  failureReason String?
+
+  earning CourierEarning?
+
+  @@index([courierId, status])
+  @@index([shipmentId])
+  @@map("courier_assignments")
+}
+
+model CourierEarning {
+  id           String         @id @default(cuid())
+  courierId    String
+  courier      CourierProfile @relation(fields: [courierId], references: [id])
+  shipmentId   String
+  shipment     Shipment       @relation(fields: [shipmentId], references: [id])
+  assignmentId String         @unique
+  assignment   CourierAssignment @relation(fields: [assignmentId], references: [id])
+
+  amount Float
+  status EarningStatus @default(PENDING)
+
+  createdAt DateTime @default(now())
+  paidAt    DateTime?
+
+  @@index([courierId, status])
+  @@map("courier_earnings")
+}
+
+// A batch of shipments moving together between two hubs. Modeling the
+// transfer as its own entity (rather than updating each shipment
+// individually) mirrors how a real dispatch works — one truck run
+// closes out N parcels at once — and gives ops a single record to track
+// per truck/route.
+model HubManifest {
+  id             String         @id @default(cuid())
+  organizationId String
+  organization   Organization   @relation(fields: [organizationId], references: [id])
+
+  fromHubId String
+  fromHub   Hub    @relation("ManifestFromHub", fields: [fromHubId], references: [id])
+  toHubId   String
+  toHub     Hub    @relation("ManifestToHub", fields: [toHubId], references: [id])
+
+  status ManifestStatus @default(OPEN)
+  vehicleInfo String?
+
+  createdById String
+  createdBy   User   @relation(fields: [createdById], references: [id])
+
+  dispatchedAt DateTime?
+  arrivedAt    DateTime?
+  closedAt     DateTime?
+
+  createdAt DateTime @default(now())
+
+  items ManifestItem[]
+
+  @@index([organizationId, status])
+  @@map("hub_manifests")
+}
+
+model ManifestItem {
+  id         String      @id @default(cuid())
+  manifestId String
+  manifest   HubManifest @relation(fields: [manifestId], references: [id])
+  shipmentId String
+  shipment   Shipment    @relation(fields: [shipmentId], references: [id])
+
+  loadedAt   DateTime  @default(now())
+  unloadedAt DateTime?
+
+  @@unique([manifestId, shipmentId])
+  @@map("manifest_items")
+}

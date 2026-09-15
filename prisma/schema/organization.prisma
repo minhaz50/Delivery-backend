@@ -1,0 +1,23 @@
+// A tenant. Every operational record (hub, zone, shipment, pricing rule)
+// is scoped under an Organization so the platform can host multiple
+// courier companies on shared infrastructure.
+model Organization {
+  id           String   @id @default(cuid())
+  name         String
+  slug         String   @unique
+  contactEmail String
+  contactPhone String?
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  users         User[]
+  hubs          Hub[]
+  zones         Zone[]
+  shipments     Shipment[]
+  pricingRules  PricingRule[]
+  payments      Payment[]
+  manifests     HubManifest[]
+
+  @@map("organizations")
+}
