@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { Role, UserStatus } from "../../../generated/prisma";
+import { Role, UserStatus } from "../../../generated/prisma/client";
 
 export const listUsersValidation = z.object({
   query: z.object({

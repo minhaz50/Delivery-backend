@@ -1,4 +1,4 @@
-import type { Prisma, ShipmentStatus } from "../../../generated/prisma";
+import type { Prisma, ShipmentStatus } from "../../../generated/prisma/client";
 import { prisma } from "../../lib/prisma";
 import { ApiError } from "../../utils/ApiError";
 import { HOLDER_AFTER_STATUS, isTransitionAllowed } from "./shipment.constant";
@@ -35,8 +35,13 @@ export interface TransitionParams {
  * (completing a courier assignment, crediting an earning, etc.) commit —
  * or fail — as a single atomic unit.
  */
-export async function transitionStatusInTx(tx: TxClient, params: TransitionParams) {
-  const shipment = await tx.shipment.findUnique({ where: { id: params.shipmentId } });
+export async function transitionStatusInTx(
+  tx: TxClient,
+  params: TransitionParams,
+) {
+  const shipment = await tx.shipment.findUnique({
+    where: { id: params.shipmentId },
+  });
   if (!shipment) throw ApiError.notFound("Shipment not found.");
 
   if (!isTransitionAllowed(shipment.status, params.toStatus)) {
@@ -53,7 +58,9 @@ export async function transitionStatusInTx(tx: TxClient, params: TransitionParam
       status: params.toStatus,
       version: { increment: 1 },
       ...(holderType ? { holderType } : {}),
-      ...(params.currentHubId !== undefined ? { currentHubId: params.currentHubId } : {}),
+      ...(params.currentHubId !== undefined
+        ? { currentHubId: params.currentHubId }
+        : {}),
       ...params.extraData,
     },
   });

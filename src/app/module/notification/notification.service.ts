@@ -1,5 +1,5 @@
 import { prisma } from "../../lib/prisma";
-import type { NotificationChannel } from "../../../generated/prisma";
+import type { NotificationChannel } from "../../../generated/prisma/client";
 
 /**
  * Fire-and-forget notification dispatch. Deliberately does NOT throw on
@@ -37,7 +37,10 @@ const notify = async (params: {
     });
   } catch (err) {
     console.error(`[notification] failed to send ${record.id}:`, err);
-    await prisma.notification.update({ where: { id: record.id }, data: { status: "FAILED" } });
+    await prisma.notification.update({
+      where: { id: record.id },
+      data: { status: "FAILED" },
+    });
   }
 
   return record;
@@ -51,11 +54,17 @@ async function dispatch(
   // FCM/APNs for PUSH. IN_APP notifications need no external dispatch —
   // the row in the `notifications` table IS the delivery.
   if (channel === "IN_APP") return;
-  console.log(`[notification:${channel}] -> user ${params.userId}: ${params.title}`);
+  console.log(
+    `[notification:${channel}] -> user ${params.userId}: ${params.title}`,
+  );
 }
 
 const getUserNotifications = async (userId: string) => {
-  return prisma.notification.findMany({ where: { userId }, orderBy: { createdAt: "desc" }, take: 50 });
+  return prisma.notification.findMany({
+    where: { userId },
+    orderBy: { createdAt: "desc" },
+    take: 50,
+  });
 };
 
 export const NotificationService = { notify, getUserNotifications };

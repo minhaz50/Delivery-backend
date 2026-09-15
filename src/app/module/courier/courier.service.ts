@@ -1,12 +1,20 @@
 import { prisma } from "../../lib/prisma";
 import { ApiError } from "../../utils/ApiError";
-import { AssignmentLegType, AssignmentStatus, ShipmentStatus } from "../../../generated/prisma";
+import {
+  AssignmentLegType,
+  AssignmentStatus,
+  ShipmentStatus,
+} from "../../../generated/prisma/client";
 import { transitionStatusInTx } from "../shipment/shipment.transition";
 import {
   LeastLoadedInZoneStrategy,
   AnyAvailableCourierStrategy,
 } from "./courier.assignment-strategy";
-import { calculateLegEarning, PICKUP_LEG_SHARE, DELIVERY_LEG_SHARE } from "./courier.constant";
+import {
+  calculateLegEarning,
+  PICKUP_LEG_SHARE,
+  DELIVERY_LEG_SHARE,
+} from "./courier.constant";
 import { PaymentService } from "../payment/payment.service";
 import { NotificationService } from "../notification/notification.service";
 
@@ -32,7 +40,9 @@ const assignCourierToShipment = async (params: {
   preferredCourierId?: string;
 }) => {
   return prisma.$transaction(async (tx) => {
-    const shipment = await tx.shipment.findUnique({ where: { id: params.shipmentId } });
+    const shipment = await tx.shipment.findUnique({
+      where: { id: params.shipmentId },
+    });
     if (!shipment) throw ApiError.notFound("Shipment not found.");
 
     const requiredStatus = LEG_PRECONDITION[params.legType];
@@ -43,7 +53,8 @@ const assignCourierToShipment = async (params: {
     }
 
     const targetZoneId =
-      params.legType === AssignmentLegType.PICKUP || params.legType === AssignmentLegType.RETURN_DELIVERY
+      params.legType === AssignmentLegType.PICKUP ||
+      params.legType === AssignmentLegType.RETURN_DELIVERY
         ? shipment.originZoneId
         : shipment.destinationZoneId;
 
@@ -55,7 +66,9 @@ const assignCourierToShipment = async (params: {
         data: { activeParcelCount: { increment: 1 } },
       });
       if (claimed.count === 0) {
-        throw ApiError.conflict("The requested courier is not currently available.");
+        throw ApiError.conflict(
+          "The requested courier is not currently available.",
+        );
       }
       claimedCourierId = params.preferredCourierId;
     } else {
@@ -84,7 +97,9 @@ const assignCourierToShipment = async (params: {
     }
 
     if (!claimedCourierId) {
-      throw ApiError.conflict("No available courier could be found for this leg right now.");
+      throw ApiError.conflict(
+        "No available courier could be found for this leg right now.",
+      );
     }
 
     const assignment = await tx.courierAssignment.create({
@@ -119,7 +134,10 @@ const assignCourierToShipment = async (params: {
   });
 };
 
-const acceptAssignment = async (assignmentId: string, courierUserId: string) => {
+const acceptAssignment = async (
+  assignmentId: string,
+  courierUserId: string,
+) => {
   const assignment = await prisma.courierAssignment.findUnique({
     where: { id: assignmentId },
     include: { courier: true },
@@ -139,9 +157,17 @@ const acceptAssignment = async (assignmentId: string, courierUserId: string) => 
 };
 
 /** Courier confirms they've physically picked up the parcel from the customer. */
-const completePickupLeg = async (assignmentId: string, courierUserId: string) => {
+const completePickupLeg = async (
+  assignmentId: string,
+  courierUserId: string,
+) => {
   return prisma.$transaction(async (tx) => {
-    const assignment = await getOwnedAssignment(tx, assignmentId, courierUserId, AssignmentLegType.PICKUP);
+    const assignment = await getOwnedAssignment(
+      tx,
+      assignmentId,
+      courierUserId,
+      AssignmentLegType.PICKUP,
+    );
 
     await tx.courierAssignment.update({
       where: { id: assignmentId },
@@ -170,10 +196,14 @@ const confirmArrivalAtOriginHub = async (params: {
   actorId: string;
 }) => {
   const result = await prisma.$transaction(async (tx) => {
-    const shipment = await tx.shipment.findUnique({ where: { id: params.shipmentId } });
+    const shipment = await tx.shipment.findUnique({
+      where: { id: params.shipmentId },
+    });
     if (!shipment) throw ApiError.notFound("Shipment not found.");
     if (shipment.originHubId !== params.hubId) {
-      throw ApiError.badRequest("This shipment's origin hub does not match the scanning hub.");
+      throw ApiError.badRequest(
+        "This shipment's origin hub does not match the scanning hub.",
+      );
     }
 
     const updated = await transitionStatusInTx(tx, {
@@ -194,7 +224,12 @@ const confirmArrivalAtOriginHub = async (params: {
     });
 
     if (assignment) {
-      await completeAssignmentAndPayInTx(tx, assignment.id, shipment.price, PICKUP_LEG_SHARE);
+      await completeAssignmentAndPayInTx(
+        tx,
+        assignment.id,
+        shipment.price,
+        PICKUP_LEG_SHARE,
+      );
     }
 
     return updated;
@@ -211,10 +246,21 @@ const confirmArrivalAtOriginHub = async (params: {
 };
 
 /** Courier confirms final delivery to the receiver (e.g. after OTP/signature capture on the app). */
-const completeDeliveryLeg = async (assignmentId: string, courierUserId: string, codCollected?: boolean) => {
+const completeDeliveryLeg = async (
+  assignmentId: string,
+  courierUserId: string,
+  codCollected?: boolean,
+) => {
   const result = await prisma.$transaction(async (tx) => {
-    const assignment = await getOwnedAssignment(tx, assignmentId, courierUserId, AssignmentLegType.DELIVERY);
-    const shipment = await tx.shipment.findUniqueOrThrow({ where: { id: assignment.shipmentId } });
+    const assignment = await getOwnedAssignment(
+      tx,
+      assignmentId,
+      courierUserId,
+      AssignmentLegType.DELIVERY,
+    );
+    const shipment = await tx.shipment.findUniqueOrThrow({
+      where: { id: assignment.shipmentId },
+    });
 
     const updated = await transitionStatusInTx(tx, {
       shipmentId: shipment.id,
@@ -224,12 +270,21 @@ const completeDeliveryLeg = async (assignmentId: string, courierUserId: string, 
       extraData: { deliveredAt: new Date() },
     });
 
-    await completeAssignmentAndPayInTx(tx, assignmentId, shipment.price, DELIVERY_LEG_SHARE);
+    await completeAssignmentAndPayInTx(
+      tx,
+      assignmentId,
+      shipment.price,
+      DELIVERY_LEG_SHARE,
+    );
 
     return { updated, shipment };
   });
 
-  if (result.shipment.codAmount > 0 && codCollected && result.shipment.paymentId) {
+  if (
+    result.shipment.codAmount > 0 &&
+    codCollected &&
+    result.shipment.paymentId
+  ) {
     await PaymentService.markCollectedAsCod(result.shipment.paymentId);
   }
 
@@ -237,14 +292,21 @@ const completeDeliveryLeg = async (assignmentId: string, courierUserId: string, 
     userId: result.shipment.customerId,
     title: "Parcel delivered",
     body: `Tracking ${result.shipment.trackingId} has been delivered.`,
-    meta: { shipmentId: result.shipment.id, trackingId: result.shipment.trackingId },
+    meta: {
+      shipmentId: result.shipment.id,
+      trackingId: result.shipment.trackingId,
+    },
   });
 
   return result.updated;
 };
 
 /** Courier reports they could not complete a pickup or delivery attempt. */
-const failLeg = async (assignmentId: string, courierUserId: string, reason: string) => {
+const failLeg = async (
+  assignmentId: string,
+  courierUserId: string,
+  reason: string,
+) => {
   return prisma.$transaction(async (tx) => {
     const assignment = await tx.courierAssignment.findUnique({
       where: { id: assignmentId },
@@ -257,7 +319,11 @@ const failLeg = async (assignmentId: string, courierUserId: string, reason: stri
 
     await tx.courierAssignment.update({
       where: { id: assignmentId },
-      data: { status: AssignmentStatus.FAILED, failureReason: reason, completedAt: new Date() },
+      data: {
+        status: AssignmentStatus.FAILED,
+        failureReason: reason,
+        completedAt: new Date(),
+      },
     });
 
     // Free up the courier immediately so they can be re-assigned elsewhere.
@@ -291,12 +357,19 @@ const createProfile = async (
     capacityKg: number;
   },
 ) => {
-  const user = await prisma.user.findFirst({ where: { id: payload.userId, organizationId } });
-  if (!user) throw ApiError.badRequest("User must belong to your organization.");
-  if (user.role !== "COURIER") throw ApiError.badRequest("User must have the COURIER role.");
+  const user = await prisma.user.findFirst({
+    where: { id: payload.userId, organizationId },
+  });
+  if (!user)
+    throw ApiError.badRequest("User must belong to your organization.");
+  if (user.role !== "COURIER")
+    throw ApiError.badRequest("User must have the COURIER role.");
 
-  const existing = await prisma.courierProfile.findUnique({ where: { userId: payload.userId } });
-  if (existing) throw ApiError.conflict("This user already has a courier profile.");
+  const existing = await prisma.courierProfile.findUnique({
+    where: { userId: payload.userId },
+  });
+  if (existing)
+    throw ApiError.conflict("This user already has a courier profile.");
 
   return prisma.courierProfile.create({ data: { ...payload, organizationId } });
 };
@@ -305,8 +378,11 @@ const setAvailability = async (
   courierUserId: string,
   payload: { isAvailable: boolean; currentZoneId?: string },
 ) => {
-  const profile = await prisma.courierProfile.findUnique({ where: { userId: courierUserId } });
-  if (!profile) throw ApiError.notFound("No courier profile found for this user.");
+  const profile = await prisma.courierProfile.findUnique({
+    where: { userId: courierUserId },
+  });
+  if (!profile)
+    throw ApiError.notFound("No courier profile found for this user.");
 
   return prisma.courierProfile.update({
     where: { id: profile.id },
@@ -315,19 +391,27 @@ const setAvailability = async (
 };
 
 const getMyAssignments = async (courierUserId: string) => {
-  const profile = await prisma.courierProfile.findUnique({ where: { userId: courierUserId } });
-  if (!profile) throw ApiError.notFound("No courier profile found for this user.");
+  const profile = await prisma.courierProfile.findUnique({
+    where: { userId: courierUserId },
+  });
+  if (!profile)
+    throw ApiError.notFound("No courier profile found for this user.");
 
   return prisma.courierAssignment.findMany({
     where: { courierId: profile.id },
-    include: { shipment: { include: { senderAddress: true, receiverAddress: true } } },
+    include: {
+      shipment: { include: { senderAddress: true, receiverAddress: true } },
+    },
     orderBy: { assignedAt: "desc" },
   });
 };
 
 const getMyEarnings = async (courierUserId: string) => {
-  const profile = await prisma.courierProfile.findUnique({ where: { userId: courierUserId } });
-  if (!profile) throw ApiError.notFound("No courier profile found for this user.");
+  const profile = await prisma.courierProfile.findUnique({
+    where: { userId: courierUserId },
+  });
+  if (!profile)
+    throw ApiError.notFound("No courier profile found for this user.");
 
   const [earnings, summary] = await Promise.all([
     prisma.courierEarning.findMany({
@@ -362,9 +446,14 @@ async function getOwnedAssignment(
     throw ApiError.forbidden("This assignment does not belong to you.");
   }
   if (assignment.legType !== expectedLeg) {
-    throw ApiError.badRequest(`Expected a ${expectedLeg} assignment, got ${assignment.legType}.`);
+    throw ApiError.badRequest(
+      `Expected a ${expectedLeg} assignment, got ${assignment.legType}.`,
+    );
   }
-  if (assignment.status !== AssignmentStatus.ASSIGNED && assignment.status !== AssignmentStatus.ACCEPTED) {
+  if (
+    assignment.status !== AssignmentStatus.ASSIGNED &&
+    assignment.status !== AssignmentStatus.ACCEPTED
+  ) {
     throw ApiError.conflict(`Assignment is already ${assignment.status}.`);
   }
   return assignment;

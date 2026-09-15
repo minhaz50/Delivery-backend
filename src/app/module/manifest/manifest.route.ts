@@ -1,15 +1,23 @@
 import { Router } from "express";
 import { auth } from "../../middleware/checkAuth";
 import { validateRequest } from "../../middleware/validateRequest";
-import { Role } from "../../../generated/prisma";
+import { Role } from "../../../generated/prisma/client";
 import { ManifestController } from "./manifest.controller";
-import { createManifestValidation, addItemsValidation } from "./manifest.validation";
+import {
+  createManifestValidation,
+  addItemsValidation,
+} from "./manifest.validation";
 
 const router = Router();
 
 const canManageManifests = auth(Role.ADMIN, Role.OPS_MANAGER, Role.HUB_MANAGER);
 
-router.post("/", canManageManifests, validateRequest(createManifestValidation), ManifestController.create);
+router.post(
+  "/",
+  canManageManifests,
+  validateRequest(createManifestValidation),
+  ManifestController.create,
+);
 router.get("/", canManageManifests, ManifestController.list);
 router.get("/:id", canManageManifests, ManifestController.getById);
 router.post(

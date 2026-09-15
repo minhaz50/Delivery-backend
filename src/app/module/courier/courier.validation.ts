@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { AssignmentLegType } from "../../../generated/prisma";
+import { AssignmentLegType } from "../../../generated/prisma/client";
 
 export const createCourierProfileValidation = z.object({
   body: z.object({

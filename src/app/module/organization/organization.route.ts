@@ -1,9 +1,12 @@
 import { Router } from "express";
 import { auth } from "../../middleware/checkAuth";
 import { validateRequest } from "../../middleware/validateRequest";
-import { Role } from "../../../generated/prisma";
+import { Role } from "../../../generated/prisma/client";
 import { OrganizationController } from "./organization.controller";
-import { createOrganizationValidation, updateOrganizationValidation } from "./organization.validation";
+import {
+  createOrganizationValidation,
+  updateOrganizationValidation,
+} from "./organization.validation";
 
 const router = Router();
 
@@ -18,8 +21,16 @@ router.post(
   validateRequest(createOrganizationValidation),
   OrganizationController.create,
 );
-router.get("/", auth(Role.SUPER_ADMIN, Role.ADMIN), OrganizationController.getAll);
-router.get("/:id", auth(Role.SUPER_ADMIN, Role.ADMIN), OrganizationController.getById);
+router.get(
+  "/",
+  auth(Role.SUPER_ADMIN, Role.ADMIN),
+  OrganizationController.getAll,
+);
+router.get(
+  "/:id",
+  auth(Role.SUPER_ADMIN, Role.ADMIN),
+  OrganizationController.getById,
+);
 router.patch(
   "/:id",
   auth(Role.SUPER_ADMIN, Role.ADMIN),

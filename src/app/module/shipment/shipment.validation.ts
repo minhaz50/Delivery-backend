@@ -1,5 +1,9 @@
 import { z } from "zod";
-import { PaymentMethod, ServiceLevel, ShipmentStatus } from "../../../generated/prisma";
+import {
+  PaymentMethod,
+  ServiceLevel,
+  ShipmentStatus,
+} from "../../../generated/prisma/client";
 
 const addressSchema = z.object({
   label: z.string().optional(),

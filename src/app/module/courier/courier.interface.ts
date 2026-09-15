@@ -1,4 +1,4 @@
-import type { AssignmentLegType } from "../../../generated/prisma";
+import type { AssignmentLegType } from "../../../generated/prisma/client";
 
 export interface IAssignCourierPayload {
   legType: AssignmentLegType;

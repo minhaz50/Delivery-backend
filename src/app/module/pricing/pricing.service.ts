@@ -1,7 +1,7 @@
 import { prisma } from "../../lib/prisma";
 import { cache } from "../../lib/redis";
 import { config } from "../../config";
-import { ServiceLevel } from "../../../generated/prisma";
+import { ServiceLevel } from "../../../generated/prisma/client";
 
 export interface IPriceQuote {
   price: number;
@@ -27,7 +27,9 @@ const createRule = async (
     baseWeightKg: number;
   },
 ) => {
-  const rule = await prisma.pricingRule.create({ data: { ...payload, organizationId } });
+  const rule = await prisma.pricingRule.create({
+    data: { ...payload, organizationId },
+  });
   await invalidatePricingCache(organizationId);
   return rule;
 };
@@ -59,7 +61,12 @@ const calculatePrice = async (
   },
 ): Promise<IPriceQuote> => {
   const cacheKey = `pricing:${organizationId}:${params.originZoneId}:${params.destinationZoneId}:${params.serviceLevel}`;
-  type CachedRule = { baseFee: number; perKgFee: number; baseWeightKg: number; source: IPriceQuote["breakdown"]["source"] };
+  type CachedRule = {
+    baseFee: number;
+    perKgFee: number;
+    baseWeightKg: number;
+    source: IPriceQuote["breakdown"]["source"];
+  };
   const cached = await cache.get<CachedRule>(cacheKey);
 
   let rule: CachedRule;

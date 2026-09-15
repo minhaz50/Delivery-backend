@@ -1,11 +1,14 @@
-import type { Prisma, PaymentMethod } from "../../../generated/prisma";
+import type { Prisma, PaymentMethod } from "../../../generated/prisma/client";
 import { prisma } from "../../lib/prisma";
 import { config } from "../../config";
 import { ApiError } from "../../utils/ApiError";
 import type { IPaymentProvider } from "./payment.interface";
 import { MockPaymentProvider } from "./providers/mock.provider";
 import { StripePaymentProvider } from "./providers/stripe.provider";
-import { SSLCommerzPaymentProvider, BkashPaymentProvider } from "./providers/local-gateways.provider";
+import {
+  SSLCommerzPaymentProvider,
+  BkashPaymentProvider,
+} from "./providers/local-gateways.provider";
 
 const PROVIDERS: Record<string, IPaymentProvider> = {
   MOCK: MockPaymentProvider,
@@ -17,7 +20,9 @@ const PROVIDERS: Record<string, IPaymentProvider> = {
 function getProvider(): IPaymentProvider {
   const provider = PROVIDERS[config.payment.provider];
   if (!provider) {
-    throw ApiError.internal(`Unknown PAYMENT_PROVIDER "${config.payment.provider}".`);
+    throw ApiError.internal(
+      `Unknown PAYMENT_PROVIDER "${config.payment.provider}".`,
+    );
   }
   return provider;
 }
@@ -81,14 +86,21 @@ const initiateForShipment = async (params: {
   });
   if (!shipment) throw ApiError.notFound("Shipment not found.");
 
-  if (params.requesterRole === "CUSTOMER" && shipment.customerId !== params.requesterId) {
+  if (
+    params.requesterRole === "CUSTOMER" &&
+    shipment.customerId !== params.requesterId
+  ) {
     throw ApiError.forbidden("This shipment does not belong to you.");
   }
   if (!shipment.paymentId) {
-    throw ApiError.badRequest("This shipment has no associated payment record.");
+    throw ApiError.badRequest(
+      "This shipment has no associated payment record.",
+    );
   }
 
-  const payment = await prisma.payment.findUnique({ where: { id: shipment.paymentId } });
+  const payment = await prisma.payment.findUnique({
+    where: { id: shipment.paymentId },
+  });
   if (!payment) throw ApiError.notFound("Payment record not found.");
 
   if (payment.status === "PAID") {
@@ -98,7 +110,7 @@ const initiateForShipment = async (params: {
   const targetMethod = params.method ?? payment.method;
   if (targetMethod === "COD") {
     throw ApiError.badRequest(
-      "Cannot initiate an online payment session for Cash on Delivery. Provide \"method\": \"CARD\" or \"MOBILE_BANKING\" to switch this shipment to online payment.",
+      'Cannot initiate an online payment session for Cash on Delivery. Provide "method": "CARD" or "MOBILE_BANKING" to switch this shipment to online payment.',
     );
   }
 
@@ -125,7 +137,16 @@ const initiateForShipment = async (params: {
 const getById = async (paymentId: string) => {
   const payment = await prisma.payment.findUnique({
     where: { id: paymentId },
-    include: { shipment: { select: { id: true, trackingId: true, customerId: true, organizationId: true } } },
+    include: {
+      shipment: {
+        select: {
+          id: true,
+          trackingId: true,
+          customerId: true,
+          organizationId: true,
+        },
+      },
+    },
   });
   if (!payment) throw ApiError.notFound("Payment not found.");
   return payment;
@@ -138,7 +159,10 @@ const markPaid = async (paymentId: string) => {
 
   if (payment.method !== "COD" && payment.providerRef) {
     const verified = await getProvider().verify(payment.providerRef);
-    if (!verified) throw ApiError.badRequest("Payment could not be verified with the provider.");
+    if (!verified)
+      throw ApiError.badRequest(
+        "Payment could not be verified with the provider.",
+      );
   }
 
   return prisma.payment.update({
@@ -166,7 +190,10 @@ const refund = async (paymentId: string) => {
     await getProvider().refund(payment.providerRef, payment.amount);
   }
 
-  return prisma.payment.update({ where: { id: paymentId }, data: { status: "REFUNDED" } });
+  return prisma.payment.update({
+    where: { id: paymentId },
+    data: { status: "REFUNDED" },
+  });
 };
 
 export const PaymentService = {

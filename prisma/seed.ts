@@ -1,8 +1,11 @@
 import "dotenv/config";
 import bcrypt from "bcryptjs";
-import { PrismaClient, Role, ServiceLevel } from "../src/generated/prisma";
+import { PrismaPg } from "@prisma/adapter-pg";
+import { PrismaClient } from "../src/generated/prisma/client";
+import { Role, ServiceLevel } from "../src/generated/prisma/enums";
 
-const prisma = new PrismaClient();
+const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
+const prisma = new PrismaClient({ adapter });
 
 async function main() {
   console.log("Seeding demo data...");
@@ -23,12 +26,22 @@ async function main() {
     prisma.zone.upsert({
       where: { organizationId_code: { organizationId: org.id, code: "DHK" } },
       update: { name: "Dhaka Metro", city: "Dhaka" },
-      create: { organizationId: org.id, name: "Dhaka Metro", code: "DHK", city: "Dhaka" },
+      create: {
+        organizationId: org.id,
+        name: "Dhaka Metro",
+        code: "DHK",
+        city: "Dhaka",
+      },
     }),
     prisma.zone.upsert({
       where: { organizationId_code: { organizationId: org.id, code: "CTG" } },
       update: { name: "Chattogram Metro", city: "Chattogram" },
-      create: { organizationId: org.id, name: "Chattogram Metro", code: "CTG", city: "Chattogram" },
+      create: {
+        organizationId: org.id,
+        name: "Chattogram Metro",
+        code: "CTG",
+        city: "Chattogram",
+      },
     }),
   ]);
 
@@ -94,7 +107,11 @@ async function main() {
 
   const dhakaHub = await prisma.hub.upsert({
     where: { organizationId_code: { organizationId: org.id, code: "DHK-01" } },
-    update: { zoneId: dhakaZone.id, managerId: hubManagerDhk.id, isActive: true },
+    update: {
+      zoneId: dhakaZone.id,
+      managerId: hubManagerDhk.id,
+      isActive: true,
+    },
     create: {
       organizationId: org.id,
       name: "Dhaka Central Hub",
@@ -119,7 +136,12 @@ async function main() {
 
   await prisma.courierProfile.upsert({
     where: { userId: courierUser.id },
-    update: { organizationId: org.id, homeHubId: dhakaHub.id, currentZoneId: dhakaZone.id, isAvailable: true },
+    update: {
+      organizationId: org.id,
+      homeHubId: dhakaHub.id,
+      currentZoneId: dhakaZone.id,
+      isAvailable: true,
+    },
     create: {
       userId: courierUser.id,
       organizationId: org.id,

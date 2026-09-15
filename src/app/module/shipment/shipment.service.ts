@@ -1,14 +1,25 @@
 import { prisma } from "../../lib/prisma";
 import { ApiError } from "../../utils/ApiError";
-import { ShipmentStatus, ServiceLevel } from "../../../generated/prisma";
+import { ShipmentStatus, ServiceLevel } from "../../../generated/prisma/client";
 import { generateTrackingId } from "./shipment.constant";
-import { transitionStatus, transitionStatusInTx } from "./shipment.transition";import { PricingService } from "../pricing/pricing.service";
+import { transitionStatus, transitionStatusInTx } from "./shipment.transition";
+import { PricingService } from "../pricing/pricing.service";
 import { PaymentService } from "../payment/payment.service";
 import { NotificationService } from "../notification/notification.service";
-import type { IAddressInput, ICreateShipmentPayload, IUpdateShipmentPayload } from "./shipment.interface";
+import type {
+  IAddressInput,
+  ICreateShipmentPayload,
+  IUpdateShipmentPayload,
+} from "./shipment.interface";
 
-const resolveDefaultHubForZone = async (tx: any, organizationId: string, zoneId: string) => {
-  const hub = await tx.hub.findFirst({ where: { organizationId, zoneId, isActive: true } });
+const resolveDefaultHubForZone = async (
+  tx: any,
+  organizationId: string,
+  zoneId: string,
+) => {
+  const hub = await tx.hub.findFirst({
+    where: { organizationId, zoneId, isActive: true },
+  });
   if (!hub) {
     throw ApiError.badRequest(
       "No active hub is configured for one of the given zones yet. An ops manager needs to set one up first.",
@@ -17,8 +28,11 @@ const resolveDefaultHubForZone = async (tx: any, organizationId: string, zoneId:
   return hub;
 };
 
-const createAddressInTx = (tx: any, userId: string | undefined, input: IAddressInput) =>
-  tx.address.create({ data: { ...input, userId } });
+const createAddressInTx = (
+  tx: any,
+  userId: string | undefined,
+  input: IAddressInput,
+) => tx.address.create({ data: { ...input, userId } });
 
 const createShipment = async (
   customerId: string,
@@ -26,11 +40,21 @@ const createShipment = async (
   payload: ICreateShipmentPayload,
 ) => {
   const [senderZone, receiverZone] = await Promise.all([
-    prisma.zone.findFirst({ where: { id: payload.senderAddress.zoneId, organizationId } }),
-    prisma.zone.findFirst({ where: { id: payload.receiverAddress.zoneId, organizationId } }),
+    prisma.zone.findFirst({
+      where: { id: payload.senderAddress.zoneId, organizationId },
+    }),
+    prisma.zone.findFirst({
+      where: { id: payload.receiverAddress.zoneId, organizationId },
+    }),
   ]);
-  if (!senderZone) throw ApiError.badRequest("Sender address zone is invalid for this organization.");
-  if (!receiverZone) throw ApiError.badRequest("Receiver address zone is invalid for this organization.");
+  if (!senderZone)
+    throw ApiError.badRequest(
+      "Sender address zone is invalid for this organization.",
+    );
+  if (!receiverZone)
+    throw ApiError.badRequest(
+      "Receiver address zone is invalid for this organization.",
+    );
 
   const serviceLevel = payload.serviceLevel ?? ServiceLevel.STANDARD;
 
@@ -42,17 +66,36 @@ const createShipment = async (
   });
 
   const shipment = await prisma.$transaction(async (tx) => {
-    const originHub = await resolveDefaultHubForZone(tx, organizationId, senderZone.id);
-    const destinationHub = await resolveDefaultHubForZone(tx, organizationId, receiverZone.id);
-
-    const senderAddress = await createAddressInTx(tx, customerId, payload.senderAddress);
-    const receiverAddress = await createAddressInTx(tx, undefined, payload.receiverAddress);
-
-    const { payment, redirectUrl } = await PaymentService.createPaymentInTx(tx, {
+    const originHub = await resolveDefaultHubForZone(
+      tx,
       organizationId,
-      amount: quote.price,
-      method: payload.paymentMethod,
-    });
+      senderZone.id,
+    );
+    const destinationHub = await resolveDefaultHubForZone(
+      tx,
+      organizationId,
+      receiverZone.id,
+    );
+
+    const senderAddress = await createAddressInTx(
+      tx,
+      customerId,
+      payload.senderAddress,
+    );
+    const receiverAddress = await createAddressInTx(
+      tx,
+      undefined,
+      payload.receiverAddress,
+    );
+
+    const { payment, redirectUrl } = await PaymentService.createPaymentInTx(
+      tx,
+      {
+        organizationId,
+        amount: quote.price,
+        method: payload.paymentMethod,
+      },
+    );
 
     let trackingId = generateTrackingId();
     // Extremely unlikely collision given the keyspace, but guard anyway.
@@ -76,7 +119,8 @@ const createShipment = async (
         widthCm: payload.widthCm,
         heightCm: payload.heightCm,
         declaredValue: payload.declaredValue,
-        codAmount: payload.paymentMethod === "COD" ? 0 : (payload.codAmount ?? 0),
+        codAmount:
+          payload.paymentMethod === "COD" ? 0 : (payload.codAmount ?? 0),
         serviceLevel,
         description: payload.description,
         price: quote.price,
@@ -101,13 +145,20 @@ const createShipment = async (
     userId: customerId,
     title: "Shipment created",
     body: `Your shipment ${shipment.shipment.trackingId} has been created. Estimated cost: ${quote.price} ${quote.currency}.`,
-    meta: { shipmentId: shipment.shipment.id, trackingId: shipment.shipment.trackingId },
+    meta: {
+      shipmentId: shipment.shipment.id,
+      trackingId: shipment.shipment.trackingId,
+    },
   });
 
   return { ...shipment, quote };
 };
 
-const schedulePickup = async (shipmentId: string, actorId: string, pickupScheduledAt?: Date) => {
+const schedulePickup = async (
+  shipmentId: string,
+  actorId: string,
+  pickupScheduledAt?: Date,
+) => {
   return transitionStatus({
     shipmentId,
     toStatus: ShipmentStatus.PICKUP_SCHEDULED,
@@ -117,7 +168,11 @@ const schedulePickup = async (shipmentId: string, actorId: string, pickupSchedul
   });
 };
 
-const cancelShipment = async (shipmentId: string, actorId: string, reason?: string) => {
+const cancelShipment = async (
+  shipmentId: string,
+  actorId: string,
+  reason?: string,
+) => {
   const result = await transitionStatus({
     shipmentId,
     toStatus: ShipmentStatus.CANCELLED,
@@ -127,7 +182,9 @@ const cancelShipment = async (shipmentId: string, actorId: string, reason?: stri
   });
 
   if (result.paymentId) {
-    const payment = await prisma.payment.findUnique({ where: { id: result.paymentId } });
+    const payment = await prisma.payment.findUnique({
+      where: { id: result.paymentId },
+    });
     if (payment?.status === "PAID") {
       await PaymentService.refund(payment.id);
     }
@@ -136,7 +193,11 @@ const cancelShipment = async (shipmentId: string, actorId: string, reason?: stri
   return result;
 };
 
-const initiateReturn = async (shipmentId: string, actorId: string, reason: string) => {
+const initiateReturn = async (
+  shipmentId: string,
+  actorId: string,
+  reason: string,
+) => {
   return prisma.$transaction(async (tx) => {
     const updated = await transitionStatusInTx(tx, {
       shipmentId,
@@ -199,10 +260,15 @@ const getById = async (id: string) => {
  * a courier or hub has already acted on the old values.
  */
 const updateShipment = async (id: string, payload: IUpdateShipmentPayload) => {
-  const shipment = await prisma.shipment.findFirst({ where: { id, isDeleted: false } });
+  const shipment = await prisma.shipment.findFirst({
+    where: { id, isDeleted: false },
+  });
   if (!shipment) throw ApiError.notFound("Shipment not found.");
 
-  const editableStatuses: ShipmentStatus[] = [ShipmentStatus.CREATED, ShipmentStatus.PICKUP_SCHEDULED];
+  const editableStatuses: ShipmentStatus[] = [
+    ShipmentStatus.CREATED,
+    ShipmentStatus.PICKUP_SCHEDULED,
+  ];
   if (!editableStatuses.includes(shipment.status)) {
     throw ApiError.conflict(
       `Shipment details can only be edited before a courier is assigned (currently ${shipment.status}).`,
@@ -211,11 +277,14 @@ const updateShipment = async (id: string, payload: IUpdateShipmentPayload) => {
 
   const data: Record<string, unknown> = {};
   if (payload.description !== undefined) data.description = payload.description;
-  if (payload.declaredValue !== undefined) data.declaredValue = payload.declaredValue;
+  if (payload.declaredValue !== undefined)
+    data.declaredValue = payload.declaredValue;
   if (payload.codAmount !== undefined) data.codAmount = payload.codAmount;
 
   if (Object.keys(data).length === 0) {
-    throw ApiError.badRequest("Provide at least one editable field (description, declaredValue, codAmount).");
+    throw ApiError.badRequest(
+      "Provide at least one editable field (description, declaredValue, codAmount).",
+    );
   }
 
   return prisma.shipment.update({ where: { id }, data });
@@ -267,10 +336,15 @@ const forceUpdateStatus = async (
  * cancelled through the proper state-machine path first.
  */
 const softDelete = async (id: string, actorId: string) => {
-  const shipment = await prisma.shipment.findFirst({ where: { id, isDeleted: false } });
+  const shipment = await prisma.shipment.findFirst({
+    where: { id, isDeleted: false },
+  });
   if (!shipment) throw ApiError.notFound("Shipment not found.");
 
-  const deletableStatuses: ShipmentStatus[] = [ShipmentStatus.CREATED, ShipmentStatus.CANCELLED];
+  const deletableStatuses: ShipmentStatus[] = [
+    ShipmentStatus.CREATED,
+    ShipmentStatus.CANCELLED,
+  ];
   if (!deletableStatuses.includes(shipment.status)) {
     throw ApiError.conflict(
       `Only a CREATED or CANCELLED shipment can be deleted (currently ${shipment.status}). Cancel it first.`,
@@ -278,7 +352,12 @@ const softDelete = async (id: string, actorId: string) => {
   }
 
   await prisma.shipmentEvent.create({
-    data: { shipmentId: id, status: shipment.status, note: "Shipment soft-deleted", actorId },
+    data: {
+      shipmentId: id,
+      status: shipment.status,
+      note: "Shipment soft-deleted",
+      actorId,
+    },
   });
 
   return prisma.shipment.update({
@@ -310,10 +389,26 @@ const searchShipments = async (params: {
     OR: [
       { trackingId: { contains: params.keyword, mode: "insensitive" } },
       { description: { contains: params.keyword, mode: "insensitive" } },
-      { senderAddress: { contactName: { contains: params.keyword, mode: "insensitive" } } },
-      { senderAddress: { contactPhone: { contains: params.keyword, mode: "insensitive" } } },
-      { receiverAddress: { contactName: { contains: params.keyword, mode: "insensitive" } } },
-      { receiverAddress: { contactPhone: { contains: params.keyword, mode: "insensitive" } } },
+      {
+        senderAddress: {
+          contactName: { contains: params.keyword, mode: "insensitive" },
+        },
+      },
+      {
+        senderAddress: {
+          contactPhone: { contains: params.keyword, mode: "insensitive" },
+        },
+      },
+      {
+        receiverAddress: {
+          contactName: { contains: params.keyword, mode: "insensitive" },
+        },
+      },
+      {
+        receiverAddress: {
+          contactPhone: { contains: params.keyword, mode: "insensitive" },
+        },
+      },
     ],
   };
 
@@ -335,7 +430,12 @@ const searchShipments = async (params: {
 
   return {
     data,
-    meta: { page: params.page, limit: params.limit, total, totalPages: Math.ceil(total / params.limit) },
+    meta: {
+      page: params.page,
+      limit: params.limit,
+      total,
+      totalPages: Math.ceil(total / params.limit),
+    },
   };
 };
 
@@ -358,7 +458,8 @@ const trackByTrackingId = async (trackingId: string) => {
       },
     },
   });
-  if (!shipment) throw ApiError.notFound("No shipment found with this tracking ID.");
+  if (!shipment)
+    throw ApiError.notFound("No shipment found with this tracking ID.");
   return shipment;
 };
 

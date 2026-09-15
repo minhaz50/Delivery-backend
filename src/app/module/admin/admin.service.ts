@@ -1,6 +1,6 @@
 import { prisma } from "../../lib/prisma";
 import { ApiError } from "../../utils/ApiError";
-import { Role, UserStatus } from "../../../generated/prisma";
+import { Role, UserStatus } from "../../../generated/prisma/client";
 import { AnalyticsService } from "../analytics/analytics.service";
 
 const listUsers = async (params: {

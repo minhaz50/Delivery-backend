@@ -2,7 +2,7 @@ import type { NextFunction, Request, Response } from "express";
 import { ApiError } from "../utils/ApiError";
 import { verifyAccessToken, type JwtPayload } from "../utils/jwt";
 import { prisma } from "../lib/prisma";
-import type { Role } from "../../generated/prisma";
+import type { Role } from "../../generated/prisma/client";
 
 declare global {
   namespace Express {
@@ -19,7 +19,8 @@ declare global {
  * the token — a demoted or blocked user is rejected immediately rather
  * than waiting for their old token to expire.
  */
-export const auth = (...allowedRoles: Role[]) =>
+export const auth =
+  (...allowedRoles: Role[]) =>
   async (req: Request, _res: Response, next: NextFunction) => {
     try {
       const header = req.headers.authorization;
@@ -36,7 +37,9 @@ export const auth = (...allowedRoles: Role[]) =>
         throw ApiError.unauthorized("Invalid or expired token.");
       }
 
-      const user = await prisma.user.findUnique({ where: { id: decoded.userId } });
+      const user = await prisma.user.findUnique({
+        where: { id: decoded.userId },
+      });
 
       if (!user || user.isDeleted) {
         throw ApiError.unauthorized("This account no longer exists.");
@@ -46,7 +49,9 @@ export const auth = (...allowedRoles: Role[]) =>
       }
 
       if (allowedRoles.length > 0 && !allowedRoles.includes(user.role)) {
-        throw ApiError.forbidden("You do not have permission to perform this action.");
+        throw ApiError.forbidden(
+          "You do not have permission to perform this action.",
+        );
       }
 
       req.user = {

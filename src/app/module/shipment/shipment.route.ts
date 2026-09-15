@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { auth } from "../../middleware/checkAuth";
 import { validateRequest } from "../../middleware/validateRequest";
-import { Role } from "../../../generated/prisma";
+import { Role } from "../../../generated/prisma/client";
 import { ShipmentController } from "./shipment.controller";
 import {
   createShipmentValidation,
@@ -27,12 +27,22 @@ router.post(
   ShipmentController.create,
 );
 
-router.get("/", auth(), validateRequest(listShipmentsValidation), ShipmentController.list);
+router.get(
+  "/",
+  auth(),
+  validateRequest(listShipmentsValidation),
+  ShipmentController.list,
+);
 
 // IMPORTANT: "/search" must be registered before "/:id" — otherwise
 // Express matches "/:id" first and treats the literal word "search" as
 // an id, and this route becomes unreachable.
-router.get("/search", auth(), validateRequest(searchShipmentsValidation), ShipmentController.search);
+router.get(
+  "/search",
+  auth(),
+  validateRequest(searchShipmentsValidation),
+  ShipmentController.search,
+);
 
 router.get("/:id", auth(), ShipmentController.getById);
 

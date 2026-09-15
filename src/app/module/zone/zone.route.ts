@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { auth } from "../../middleware/checkAuth";
 import { validateRequest } from "../../middleware/validateRequest";
-import { Role } from "../../../generated/prisma";
+import { Role } from "../../../generated/prisma/client";
 import { ZoneController } from "./zone.controller";
 import { createZoneValidation } from "./zone.validation";
 

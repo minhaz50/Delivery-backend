@@ -7,8 +7,12 @@ import {
   signRefreshToken,
   verifyRefreshToken,
 } from "../../utils/jwt";
-import type { IAuthTokens, ILoginPayload, IRegisterCustomerPayload } from "./auth.interface";
-import { Role } from "../../../generated/prisma";
+import type {
+  IAuthTokens,
+  ILoginPayload,
+  IRegisterCustomerPayload,
+} from "./auth.interface";
+import { Role } from "../../../generated/prisma/client";
 
 const toTokenPayload = (user: {
   id: string;
@@ -23,7 +27,9 @@ const toTokenPayload = (user: {
 });
 
 const registerCustomer = async (payload: IRegisterCustomerPayload) => {
-  const existing = await prisma.user.findUnique({ where: { email: payload.email } });
+  const existing = await prisma.user.findUnique({
+    where: { email: payload.email },
+  });
   if (existing) {
     throw ApiError.conflict("An account with this email already exists.");
   }
@@ -35,7 +41,10 @@ const registerCustomer = async (payload: IRegisterCustomerPayload) => {
     throw ApiError.badRequest("Unknown or inactive courier organization.");
   }
 
-  const hashedPassword = await bcrypt.hash(payload.password, config.bcryptSaltRounds);
+  const hashedPassword = await bcrypt.hash(
+    payload.password,
+    config.bcryptSaltRounds,
+  );
 
   // Registration is always CUSTOMER. Staff accounts (courier, hub manager,
   // ops manager, admin) are provisioned by an existing ADMIN via the
@@ -56,7 +65,9 @@ const registerCustomer = async (payload: IRegisterCustomerPayload) => {
 };
 
 const login = async (payload: ILoginPayload) => {
-  const user = await prisma.user.findUnique({ where: { email: payload.email } });
+  const user = await prisma.user.findUnique({
+    where: { email: payload.email },
+  });
   if (!user || user.isDeleted) {
     throw ApiError.unauthorized("Invalid email or password.");
   }
@@ -73,7 +84,9 @@ const login = async (payload: ILoginPayload) => {
   return { user: sanitize(user), ...tokens };
 };
 
-const refreshAccessToken = async (refreshToken: string): Promise<IAuthTokens> => {
+const refreshAccessToken = async (
+  refreshToken: string,
+): Promise<IAuthTokens> => {
   let decoded;
   try {
     decoded = verifyRefreshToken(refreshToken);

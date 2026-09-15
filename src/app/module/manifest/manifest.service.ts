@@ -1,6 +1,9 @@
 import { prisma } from "../../lib/prisma";
 import { ApiError } from "../../utils/ApiError";
-import { ManifestStatus, ShipmentStatus } from "../../../generated/prisma";
+import {
+  ManifestStatus,
+  ShipmentStatus,
+} from "../../../generated/prisma/client";
 import { transitionStatusInTx } from "../shipment/shipment.transition";
 
 /**
@@ -23,13 +26,20 @@ const create = async (params: {
   createdById: string;
 }) => {
   if (params.fromHubId === params.toHubId) {
-    throw ApiError.badRequest("A manifest must move between two different hubs.");
+    throw ApiError.badRequest(
+      "A manifest must move between two different hubs.",
+    );
   }
   const [fromHub, toHub] = await Promise.all([
-    prisma.hub.findFirst({ where: { id: params.fromHubId, organizationId: params.organizationId } }),
-    prisma.hub.findFirst({ where: { id: params.toHubId, organizationId: params.organizationId } }),
+    prisma.hub.findFirst({
+      where: { id: params.fromHubId, organizationId: params.organizationId },
+    }),
+    prisma.hub.findFirst({
+      where: { id: params.toHubId, organizationId: params.organizationId },
+    }),
   ]);
-  if (!fromHub || !toHub) throw ApiError.badRequest("Both hubs must belong to your organization.");
+  if (!fromHub || !toHub)
+    throw ApiError.badRequest("Both hubs must belong to your organization.");
 
   return prisma.hubManifest.create({
     data: {
@@ -50,18 +60,29 @@ const create = async (params: {
  * or on a return journey (RETURN_INITIATED, heading back toward the
  * original sender's hub in the reverse direction).
  */
-const addItems = async (manifestId: string, shipmentIds: string[], actorId: string) => {
+const addItems = async (
+  manifestId: string,
+  shipmentIds: string[],
+  actorId: string,
+) => {
   return prisma.$transaction(async (tx) => {
-    const manifest = await tx.hubManifest.findUnique({ where: { id: manifestId } });
+    const manifest = await tx.hubManifest.findUnique({
+      where: { id: manifestId },
+    });
     if (!manifest) throw ApiError.notFound("Manifest not found.");
     if (manifest.status !== ManifestStatus.OPEN) {
-      throw ApiError.conflict(`Cannot add shipments to a manifest that is already ${manifest.status}.`);
+      throw ApiError.conflict(
+        `Cannot add shipments to a manifest that is already ${manifest.status}.`,
+      );
     }
 
     const results = [];
     for (const shipmentId of shipmentIds) {
-      const shipment = await tx.shipment.findUnique({ where: { id: shipmentId } });
-      if (!shipment) throw ApiError.notFound(`Shipment ${shipmentId} not found.`);
+      const shipment = await tx.shipment.findUnique({
+        where: { id: shipmentId },
+      });
+      if (!shipment)
+        throw ApiError.notFound(`Shipment ${shipmentId} not found.`);
 
       const isForwardLeg =
         shipment.status === ShipmentStatus.AT_ORIGIN_HUB &&
@@ -98,7 +119,9 @@ const dispatch = async (manifestId: string, actorId: string) => {
     });
     if (!manifest) throw ApiError.notFound("Manifest not found.");
     if (manifest.status !== ManifestStatus.OPEN) {
-      throw ApiError.conflict(`Manifest must be OPEN to dispatch (currently ${manifest.status}).`);
+      throw ApiError.conflict(
+        `Manifest must be OPEN to dispatch (currently ${manifest.status}).`,
+      );
     }
     if (manifest.items.length === 0) {
       throw ApiError.badRequest("Cannot dispatch an empty manifest.");
@@ -134,12 +157,17 @@ const arrive = async (manifestId: string, actorId: string) => {
     });
     if (!manifest) throw ApiError.notFound("Manifest not found.");
     if (manifest.status !== ManifestStatus.DISPATCHED) {
-      throw ApiError.conflict(`Manifest must be DISPATCHED to mark arrival (currently ${manifest.status}).`);
+      throw ApiError.conflict(
+        `Manifest must be DISPATCHED to mark arrival (currently ${manifest.status}).`,
+      );
     }
 
     for (const item of manifest.items) {
-      const isReturnLeg = item.shipment.status === ShipmentStatus.RETURN_IN_TRANSIT;
-      const toStatus = isReturnLeg ? ShipmentStatus.RETURNED_TO_SENDER : ShipmentStatus.AT_DESTINATION_HUB;
+      const isReturnLeg =
+        item.shipment.status === ShipmentStatus.RETURN_IN_TRANSIT;
+      const toStatus = isReturnLeg
+        ? ShipmentStatus.RETURNED_TO_SENDER
+        : ShipmentStatus.AT_DESTINATION_HUB;
 
       await transitionStatusInTx(tx, {
         shipmentId: item.shipmentId,
@@ -156,7 +184,10 @@ const arrive = async (manifestId: string, actorId: string) => {
         });
       }
 
-      await tx.manifestItem.update({ where: { id: item.id }, data: { unloadedAt: new Date() } });
+      await tx.manifestItem.update({
+        where: { id: item.id },
+        data: { unloadedAt: new Date() },
+      });
     }
 
     return tx.hubManifest.update({
@@ -167,10 +198,14 @@ const arrive = async (manifestId: string, actorId: string) => {
 };
 
 const close = async (manifestId: string) => {
-  const manifest = await prisma.hubManifest.findUnique({ where: { id: manifestId } });
+  const manifest = await prisma.hubManifest.findUnique({
+    where: { id: manifestId },
+  });
   if (!manifest) throw ApiError.notFound("Manifest not found.");
   if (manifest.status !== ManifestStatus.ARRIVED) {
-    throw ApiError.conflict(`Manifest must be ARRIVED to close (currently ${manifest.status}).`);
+    throw ApiError.conflict(
+      `Manifest must be ARRIVED to close (currently ${manifest.status}).`,
+    );
   }
   return prisma.hubManifest.update({
     where: { id: manifestId },
@@ -184,7 +219,11 @@ const getById = async (id: string) => {
     include: {
       fromHub: true,
       toHub: true,
-      items: { include: { shipment: { select: { id: true, trackingId: true, status: true } } } },
+      items: {
+        include: {
+          shipment: { select: { id: true, trackingId: true, status: true } },
+        },
+      },
     },
   });
   if (!manifest) throw ApiError.notFound("Manifest not found.");
@@ -199,4 +238,12 @@ const listForOrganization = async (organizationId: string) => {
   });
 };
 
-export const ManifestService = { create, addItems, dispatch, arrive, close, getById, listForOrganization };
+export const ManifestService = {
+  create,
+  addItems,
+  dispatch,
+  arrive,
+  close,
+  getById,
+  listForOrganization,
+};

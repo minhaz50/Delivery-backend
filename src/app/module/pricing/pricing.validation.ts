@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { ServiceLevel } from "../../../generated/prisma";
+import { ServiceLevel } from "../../../generated/prisma/client";
 
 export const createPricingRuleValidation = z.object({
   body: z.object({

@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { PaymentMethod } from "../../../generated/prisma";
+import { PaymentMethod } from "../../../generated/prisma/client";
 
 export const paymentIdParamValidation = z.object({
   params: z.object({ id: z.string().min(1) }),

@@ -1,4 +1,7 @@
-import type { PaymentMethod, ServiceLevel } from "../../../generated/prisma";
+import type {
+  PaymentMethod,
+  ServiceLevel,
+} from "../../../generated/prisma/client";
 
 export interface IAddressInput {
   label?: string;

@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { auth } from "../../middleware/checkAuth";
 import { validateRequest } from "../../middleware/validateRequest";
-import { Role } from "../../../generated/prisma";
+import { Role } from "../../../generated/prisma/client";
 import { HubController } from "./hub.controller";
 import { createHubValidation, assignManagerValidation } from "./hub.validation";
 

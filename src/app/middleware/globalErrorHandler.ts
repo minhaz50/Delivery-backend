@@ -1,6 +1,6 @@
 import type { NextFunction, Request, Response } from "express";
 import { ZodError } from "zod";
-import { Prisma } from "../../generated/prisma";
+import { Prisma } from "../../generated/prisma/client";
 import { ApiError } from "../utils/ApiError";
 import { config } from "../config";
 
@@ -45,6 +45,9 @@ export const globalErrorHandler = (
     statusCode,
     message,
     errorDetails,
-    stack: config.env === "development" && err instanceof Error ? err.stack : undefined,
+    stack:
+      config.env === "development" && err instanceof Error
+        ? err.stack
+        : undefined,
   });
 };

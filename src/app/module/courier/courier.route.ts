@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { auth } from "../../middleware/checkAuth";
 import { validateRequest } from "../../middleware/validateRequest";
-import { Role } from "../../../generated/prisma";
+import { Role } from "../../../generated/prisma/client";
 import { CourierController } from "./courier.controller";
 import {
   createCourierProfileValidation,
@@ -28,11 +28,23 @@ router.patch(
   validateRequest(setAvailabilityValidation),
   CourierController.setAvailability,
 );
-router.get("/me/assignments", auth(Role.COURIER), CourierController.getMyAssignments);
+router.get(
+  "/me/assignments",
+  auth(Role.COURIER),
+  CourierController.getMyAssignments,
+);
 router.get("/me/earnings", auth(Role.COURIER), CourierController.getMyEarnings);
 
-router.post("/assignments/:id/accept", auth(Role.COURIER), CourierController.acceptAssignment);
-router.post("/assignments/:id/complete-pickup", auth(Role.COURIER), CourierController.completePickup);
+router.post(
+  "/assignments/:id/accept",
+  auth(Role.COURIER),
+  CourierController.acceptAssignment,
+);
+router.post(
+  "/assignments/:id/complete-pickup",
+  auth(Role.COURIER),
+  CourierController.completePickup,
+);
 router.post(
   "/assignments/:id/complete-delivery",
   auth(Role.COURIER),
