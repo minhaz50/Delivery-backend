@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "description": "Courier & Logistics Management Platform - REST API",
   "main": "src/server.ts",
+  "type": "module",
   "scripts": {
     "dev": "tsx watch src/server.ts",
     "build": "tsc",
