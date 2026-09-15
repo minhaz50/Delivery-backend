@@ -1,4 +1,8 @@
-import express, { type Application, type Request, type Response } from "express";
+import express, {
+  type Application,
+  type Request,
+  type Response,
+} from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
 import { config } from "./app/config";
@@ -36,7 +40,11 @@ app.get("/", (_req: Request, res: Response) => {
 });
 
 app.get("/health", (_req: Request, res: Response) => {
-  res.status(200).json({ success: true, message: "OK", timestamp: new Date().toISOString() });
+  res.status(200).json({
+    success: true,
+    message: "OK",
+    timestamp: new Date().toISOString(),
+  });
 });
 
 app.use("/api/v1", router);
